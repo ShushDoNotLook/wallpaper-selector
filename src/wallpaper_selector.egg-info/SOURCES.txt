@@ -1,0 +1,12 @@
+pyproject.toml
+src/wallpaper_selector/__init__.py
+src/wallpaper_selector/__main__.py
+src/wallpaper_selector/app.py
+src/wallpaper_selector/styles.py
+src/wallpaper_selector/thumbnail.py
+src/wallpaper_selector.egg-info/PKG-INFO
+src/wallpaper_selector.egg-info/SOURCES.txt
+src/wallpaper_selector.egg-info/dependency_links.txt
+src/wallpaper_selector.egg-info/entry_points.txt
+src/wallpaper_selector.egg-info/requires.txt
+src/wallpaper_selector.egg-info/top_level.txt
