@@ -7,13 +7,15 @@ from gi.repository import Gtk, Gdk, Gio
 if TYPE_CHECKING:
     from wallpaper_selector.models.wallpaper_manager import WallpaperManager
 
+from wallpaper_selector.views.base_view import BaseView
+
 
 class CarouselView(BaseView):
     """3D carousel view with left/right preview thumbnails"""
 
     def __init__(self, wallpaper_manager: 'WallpaperManager'):
         super().__init__(wallpaper_manager)
-        self.carousel_index = 0
+        self.carousel_index = self._find_current_wallpaper_index()
 
         # Carousel widgets
         self.preview_left: Optional[Gtk.Picture] = None
@@ -22,6 +24,16 @@ class CarouselView(BaseView):
         self.preview_right_box: Optional[Gtk.Box] = None
         self.carousel_image: Optional[Gtk.Picture] = None
         self.carousel_label: Optional[Gtk.Label] = None
+
+    def _find_current_wallpaper_index(self) -> int:
+        """Find the index of the current wallpaper in the wallpapers list"""
+        current = self.wallpaper_manager.get_current_wallpaper()
+        if current:
+            wallpapers = self.wallpaper_manager.get_wallpapers()
+            for i, path in enumerate(wallpapers):
+                if str(path) == current:
+                    return i
+        return 0  # Default to first wallpaper if not found
 
     def build(self) -> Gtk.Widget:
         """Build the carousel view"""

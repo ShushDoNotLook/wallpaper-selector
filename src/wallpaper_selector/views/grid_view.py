@@ -8,6 +8,8 @@ if TYPE_CHECKING:
     from wallpaper_selector.models.wallpaper_manager import WallpaperManager
     from wallpaper_selector.thumbnail import WallpaperThumbnail
 
+from wallpaper_selector.views.base_view import BaseView
+
 
 class GridView(BaseView):
     """FlowBox-based grid view for wallpaper selection"""
@@ -63,18 +65,23 @@ class GridView(BaseView):
             self.flow_box.remove(child)
 
         # Rebuild wallpaper thumbnails
-        for wallpaper in self.wallpaper_manager.get_wallpapers():
+        current_wallpaper_index = 0
+        current_wallpaper = self.wallpaper_manager.get_current_wallpaper()
+
+        for i, wallpaper in enumerate(self.wallpaper_manager.get_wallpapers()):
             child = Gtk.FlowBoxChild()
             from wallpaper_selector.thumbnail import WallpaperThumbnail
-            current = (str(wallpaper) == self.wallpaper_manager.get_current_wallpaper())
+            current = (str(wallpaper) == current_wallpaper)
+            if current:
+                current_wallpaper_index = i
             child.set_child(WallpaperThumbnail(wallpaper, current, self.wallpaper_manager.set_wallpaper))
             self.flow_box.append(child)
 
-        # Focus first item
+        # Focus current wallpaper item, or first if not found
         if self.flow_box.get_children():
-            first_child = self.flow_box.get_child_at_index(0)
-            if first_child:
-                first_child.grab_focus()
+            focus_child = self.flow_box.get_child_at_index(current_wallpaper_index)
+            if focus_child:
+                focus_child.grab_focus()
 
     def handle_key_press(self, keyval: int) -> bool:
         """Handle grid-specific key presses"""

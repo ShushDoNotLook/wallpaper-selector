@@ -1,7 +1,11 @@
 """Main WallpaperSelector GTK Application - Refactored with separated views"""
 
+import gi
+gi.require_version('Gtk', '4.0')
+
 from pathlib import Path
-from gi.repository import Gtk, Gdk
+from typing import Optional
+from gi.repository import Gtk, Gdk, Gio
 
 from .models.wallpaper_manager import WallpaperManager
 from .views.carousel_view import CarouselView
