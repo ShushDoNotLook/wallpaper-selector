@@ -48,6 +48,8 @@ class WallpaperThumbnail(Gtk.Box):
         if is_current:
             current_badge = Gtk.Label()
             current_badge.set_text("● Current")
+            current_badge.set_halign(Gtk.Align.END)
+            current_badge.set_hexpand(True)
             current_badge.add_css_class("current-badge")
             info_box.append(current_badge)
 
