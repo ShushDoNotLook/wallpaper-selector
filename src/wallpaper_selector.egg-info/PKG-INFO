@@ -1,5 +1,0 @@
-Metadata-Version: 2.4
-Name: wallpaper-selector
-Version: 1.0.0
-Summary: Modern GTK4 wallpaper selector for Wayland/Niri
-Requires-Dist: PyGObject>=3.42.0

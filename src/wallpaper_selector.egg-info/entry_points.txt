@@ -1,2 +1,0 @@
-[console_scripts]
-wallpaper-selector = wallpaper_selector.__main__:main
