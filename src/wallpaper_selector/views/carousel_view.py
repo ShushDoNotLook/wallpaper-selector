@@ -24,6 +24,10 @@ class CarouselView(BaseView):
         self.preview_right_box: Optional[Gtk.Box] = None
         self.carousel_image: Optional[Gtk.Picture] = None
         self.carousel_label: Optional[Gtk.Label] = None
+        self.left_nav_icon: Optional[Gtk.Label] = None
+        self.right_nav_icon: Optional[Gtk.Label] = None
+        self.left_side_box: Optional[Gtk.Box] = None
+        self.right_side_box: Optional[Gtk.Box] = None
 
     def _find_current_wallpaper_index(self) -> int:
         """Find the index of the current wallpaper in the wallpapers list"""
@@ -46,9 +50,10 @@ class CarouselView(BaseView):
         container.set_halign(Gtk.Align.CENTER)
 
         # Image row (left preview, main image, right preview)
-        image_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        # Use CenterBox so the main image is always centered
+        image_row = Gtk.CenterBox()
         image_row.set_valign(Gtk.Align.CENTER)
-        image_row.set_halign(Gtk.Align.CENTER)
+        image_row.set_hexpand(False)
 
         # Left preview thumbnail (clickable)
         self.preview_left_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
@@ -68,37 +73,44 @@ class CarouselView(BaseView):
         left_click.connect("pressed", self._on_preview_left_clicked)
         self.preview_left_box.add_controller(left_click)
 
-        image_row.append(self.preview_left_box)
+        # Left side: preview + nav icon (in a box)
+        self.left_side_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.left_side_box.append(self.preview_left_box)
 
         # Left navigation icon
-        left_nav_icon = Gtk.Label()
-        left_nav_icon.set_text("◀")
-        left_nav_icon.add_css_class("nav-icon")
-        left_nav_icon.set_valign(Gtk.Align.CENTER)
-        image_row.append(left_nav_icon)
+        self.left_nav_icon = Gtk.Label()
+        self.left_nav_icon.set_text("◀")
+        self.left_nav_icon.add_css_class("nav-icon")
+        self.left_nav_icon.set_valign(Gtk.Align.CENTER)
+        self.left_side_box.append(self.left_nav_icon)
 
         # Main image (center)
         main_image_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         main_image_box.set_margin_start(12)
         main_image_box.set_margin_end(12)
         main_image_box.set_valign(Gtk.Align.CENTER)
+        main_image_box.set_halign(Gtk.Align.CENTER)
+        main_image_box.set_hexpand(False)
         main_image_box.add_css_class("carousel-main-3d")
 
         self.carousel_image = Gtk.Picture()
         self.carousel_image.set_content_fit(Gtk.ContentFit.COVER)
         self.carousel_image.set_size_request(600, 375)
         self.carousel_image.set_valign(Gtk.Align.CENTER)
+        self.carousel_image.set_halign(Gtk.Align.CENTER)
+        self.carousel_image.set_hexpand(False)
         self.carousel_image.add_css_class("carousel-image")
         main_image_box.append(self.carousel_image)
 
-        image_row.append(main_image_box)
-
         # Right navigation icon
-        right_nav_icon = Gtk.Label()
-        right_nav_icon.set_text("▶")
-        right_nav_icon.add_css_class("nav-icon")
-        right_nav_icon.set_valign(Gtk.Align.CENTER)
-        image_row.append(right_nav_icon)
+        self.right_nav_icon = Gtk.Label()
+        self.right_nav_icon.set_text("▶")
+        self.right_nav_icon.add_css_class("nav-icon")
+        self.right_nav_icon.set_valign(Gtk.Align.CENTER)
+
+        # Right side: nav icon + preview (in a box)
+        self.right_side_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.right_side_box.append(self.right_nav_icon)
 
         # Right preview thumbnail (clickable)
         self.preview_right_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
@@ -118,7 +130,12 @@ class CarouselView(BaseView):
         right_click.connect("pressed", self._on_preview_right_clicked)
         self.preview_right_box.add_controller(right_click)
 
-        image_row.append(self.preview_right_box)
+        self.right_side_box.append(self.preview_right_box)
+
+        # Set up the CenterBox layout
+        image_row.set_start_widget(self.left_side_box)
+        image_row.set_center_widget(main_image_box)
+        image_row.set_end_widget(self.right_side_box)
         container.append(image_row)
 
         # Filename label
@@ -164,13 +181,14 @@ class CarouselView(BaseView):
 
         # Handle edge cases based on number of wallpapers
         if len(wallpapers) <= 1:
-            self.preview_left_box.set_visible(False)
-            self.preview_right_box.set_visible(False)
+            # Hide the entire side boxes for single wallpaper
+            self.left_side_box.set_visible(False)
+            self.right_side_box.set_visible(False)
             return
 
-        # Show previews for 2+ wallpapers
-        self.preview_left_box.set_visible(True)
-        self.preview_right_box.set_visible(True)
+        # Show side boxes and update content for 2+ wallpapers
+        self.left_side_box.set_visible(True)
+        self.right_side_box.set_visible(True)
 
         # Calculate prev/next indices with wraparound
         prev_index = (self.carousel_index - 1) % len(wallpapers)
