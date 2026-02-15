@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from .app import WallpaperSelector
+from .sync import main as sync_main
 
 PID_FILE = Path("/tmp/wallpaper-selector.pid")
 
@@ -56,7 +57,13 @@ def check_wallpaper_dir() -> bool:
 
 
 def main():
-    """Main entry point with toggle behavior"""
+    """Main entry point with CLI support"""
+    # Check for sync mode
+    if len(sys.argv) > 1 and sys.argv[1] == 'sync':
+        verbose = '--verbose' in sys.argv or '-v' in sys.argv
+        sys.exit(sync_main(verbose=verbose))
+
+    # GUI mode: toggle behavior
     # 1. If already running, kill and exit (toggle off)
     if is_running():
         kill_existing()

@@ -1,0 +1,12 @@
+[Unit]
+Description=Sync wallpaper from swww to DMS on boot
+After=dms.service graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/wallpaper-selector sync --verbose
+RemainAfterExit=no
+
+[Install]
+WantedBy=graphical-session.target

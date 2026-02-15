@@ -2,6 +2,12 @@
 
 Modern GTK4 wallpaper selector for Wayland/Niri with swww and DMS integration.
 
+## Changelog
+
+### v1.1.0
+- Added `wallpaper-selector sync` command to fix DMS using wrong wallpaper colors on boot
+- Added systemd service for automatic sync on login
+
 ## Features
 
 - Grid preview of all wallpapers in `~/Pictures/Wallpapers`
@@ -16,11 +22,27 @@ Modern GTK4 wallpaper selector for Wayland/Niri with swww and DMS integration.
 uv tool install -e ~/dev/wallpaper-selector
 ```
 
+## Boot Sync Setup (Fixes DMS using wrong wallpaper colors)
+
+To sync your current wallpaper to DMS on boot (prevents index 0 fallback):
+
+```bash
+cd ~/dev/wallpaper-selector
+./install-sync.sh
+```
+
+This installs a systemd service that:
+1. Waits for swww-daemon to be ready
+2. Queries the current wallpaper from swww
+3. Syncs it to DMS matugen for proper color generation
+
 ## Usage
 
 ### From Terminal
 ```bash
-wallpaper-selector
+wallpaper-selector          # Open GTK selector
+wallpaper-selector sync    # Sync current wallpaper to DMS (one-time)
+wallpaper-selector sync -v # Sync with verbose output
 ```
 
 ### From Niri Keybinding

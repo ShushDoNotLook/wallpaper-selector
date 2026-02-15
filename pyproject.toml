@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wallpaper-selector"
-version = "1.0.0"
+version = "1.1.0"
 description = "Modern GTK4 wallpaper selector for Wayland/Niri"
 dependencies = [
     "PyGObject>=3.42.0",
