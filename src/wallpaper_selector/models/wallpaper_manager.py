@@ -1,16 +1,27 @@
 """Wallpaper Manager - handles wallpaper loading and state management"""
 
-import subprocess
 from pathlib import Path
-from typing import List, Optional
-from gi.repository import Gio
+from typing import List, Optional, TYPE_CHECKING
+
+from ..config import Config
+
+if TYPE_CHECKING:
+    from ..plugins.wallpaper import WallpaperBackend
+    from ..plugins.colors import ColorGenerator
 
 
 class WallpaperManager:
     """Manages wallpaper collection and current wallpaper state"""
 
-    def __init__(self, wallpaper_dir: Path):
-        self.wallpaper_dir = wallpaper_dir
+    def __init__(
+        self,
+        config: Config,
+        wallpaper_backend: "WallpaperBackend",
+        color_generator: Optional["ColorGenerator"] = None,
+    ):
+        self.config = config
+        self.wallpaper_backend = wallpaper_backend
+        self.color_generator = color_generator
         self.wallpapers: List[Path] = []
         self.current_wallpaper: Optional[str] = None
         self._load_wallpapers()
@@ -18,34 +29,31 @@ class WallpaperManager:
 
     def _load_wallpapers(self):
         """Load all wallpapers from directory"""
-        if not self.wallpaper_dir.exists():
-            self.wallpaper_dir.mkdir(parents=True, exist_ok=True)
+        wallpaper_dir = self.config.wallpaper.directory
+        if not wallpaper_dir.exists():
+            wallpaper_dir.mkdir(parents=True, exist_ok=True)
             return
 
-        extensions = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'}
+        # Get extensions with leading dot
+        extensions = {f".{ext.lower()}" if not ext.startswith(".") else ext.lower()
+                      for ext in self.config.wallpaper.extensions}
+
         self.wallpapers = sorted(
-            [f for f in self.wallpaper_dir.iterdir()
+            [f for f in wallpaper_dir.iterdir()
              if f.suffix.lower() in extensions],
             key=lambda x: x.stat().st_mtime,
             reverse=True  # newest first
         )
 
     def _get_current_wallpaper(self) -> Optional[str]:
-        """Get current wallpaper from swww"""
-        try:
-            result = subprocess.run(
-                ['swww', 'query'],
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            for line in result.stdout.split('\n'):
-                if 'image:' in line:
-                    self.current_wallpaper = line.split('image:')[1].strip()
-                    return self.current_wallpaper
-        except:
-            pass
-        return None
+        """Get current wallpaper from backend"""
+        self.current_wallpaper = self.wallpaper_backend.get_current_wallpaper()
+        return self.current_wallpaper
+
+    @property
+    def wallpaper_dir(self) -> Path:
+        """Get wallpaper directory"""
+        return self.config.wallpaper.directory
 
     def get_wallpapers(self) -> List[Path]:
         """Get list of wallpapers"""
@@ -56,31 +64,25 @@ class WallpaperManager:
         return self.current_wallpaper
 
     def set_wallpaper(self, path: Path) -> bool:
-        """Set wallpaper using swww and regenerate colors via DMS"""
-        try:
-            # Set wallpaper with swww
-            subprocess.run(
-                ['swww', 'img', str(path), '--transition-type', 'grow',
-                 '--transition-duration', '0.7', '--transition-fps', '144'],
-                check=True
-            )
+        """Set wallpaper using backend and optionally regenerate colors"""
+        backend_config = self.config.wallpaper.backend
 
-            # Generate colors via DMS matugen integration
-            subprocess.run(
-                ['dms', 'matugen', 'queue',
-                 '--state-dir', Path.home() / '.cache/DankMaterialShell',
-                 '--config-dir', Path.home() / '.config/DankMaterialShell',
-                 '--shell-dir', '/usr/share/quickshell/dms',
-                 '--value', str(path)],
-                check=False
-            )
-
-            # Update current wallpaper tracking
-            self.current_wallpaper = str(path)
-            return True
-        except Exception as e:
-            print(f"Error setting wallpaper: {e}")
+        # Set wallpaper with backend
+        if not self.wallpaper_backend.set_wallpaper(
+            path,
+            backend_config.transition_type,
+            backend_config.transition_duration,
+            backend_config.transition_fps,
+        ):
             return False
+
+        # Generate colors if enabled and generator available
+        if self.config.colors.enabled and self.color_generator:
+            self.color_generator.generate(path)
+
+        # Update current wallpaper tracking
+        self.current_wallpaper = str(path)
+        return True
 
     def refresh_current_wallpaper(self):
         """Refresh current wallpaper from system"""

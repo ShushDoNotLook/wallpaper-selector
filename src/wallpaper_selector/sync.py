@@ -1,110 +1,95 @@
-"""Sync current wallpaper from swww to DMS matugen on boot"""
+"""Sync current wallpaper from backend to color generator on boot"""
 
-import json
-import subprocess
 import time
-from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
-DMS_SESSION_FILE = Path.home() / ".local/state/DankMaterialShell/session.json"
+from .config import load_config
+from .plugins.wallpaper import get_backend as get_wallpaper_backend
+from .plugins.colors import get_backend as get_color_backend
+
+if TYPE_CHECKING:
+    from .plugins.wallpaper import WallpaperBackend
+    from .plugins.colors import ColorGenerator
 
 
-def wait_for_swww(timeout: int = 10) -> bool:
-    """Wait for swww-daemon to be ready"""
+def wait_for_backend(backend: "WallpaperBackend", timeout: int = 10) -> bool:
+    """Wait for wallpaper backend daemon to be ready"""
     for _ in range(timeout * 2):  # Check every 0.5 seconds
         try:
-            result = subprocess.run(
-                ['swww', 'query'],
-                capture_output=True,
-                check=True,
-                timeout=2
-            )
-            if 'image:' in result.stdout.decode():
+            wallpaper = backend.get_current_wallpaper()
+            if wallpaper:
                 return True
-        except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        except Exception:
             pass
         time.sleep(0.5)
     return False
 
 
-def get_current_wallpaper() -> Optional[str]:
-    """Get current wallpaper from swww"""
+def sync_colors(wallpaper_path: str, color_generator: "ColorGenerator") -> bool:
+    """Sync wallpaper to color generator"""
     try:
-        result = subprocess.run(
-            ['swww', 'query'],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        for line in result.stdout.split('\n'):
-            if 'image:' in line:
-                return line.split('image:')[1].strip()
-    except subprocess.CalledProcessError:
-        pass
-    return None
-
-
-def update_dms_session(wallpaper_path: str) -> bool:
-    """Update DMS session.json with current wallpaper path"""
-    try:
-        if not DMS_SESSION_FILE.exists():
-            return False
-
-        with open(DMS_SESSION_FILE, 'r') as f:
-            session = json.load(f)
-
-        session['wallpaperPath'] = wallpaper_path
-
-        with open(DMS_SESSION_FILE, 'w') as f:
-            json.dump(session, f, indent=2)
-
+        # Update session file first so it initializes with correct wallpaper
+        color_generator.update_session(wallpaper_path)
+        # Generate colors
+        color_generator.generate(wallpaper_path)
         return True
     except Exception as e:
-        print(f"Error updating DMS session: {e}")
-        return False
-
-
-def sync_to_dms(wallpaper_path: str) -> bool:
-    """Sync wallpaper to DMS matugen"""
-    try:
-        # Update DMS session file first so it initializes with correct wallpaper
-        update_dms_session(wallpaper_path)
-
-        subprocess.run(
-            ['dms', 'matugen', 'queue',
-             '--state-dir', Path.home() / '.cache/DankMaterialShell',
-             '--config-dir', Path.home() / '.config/DankMaterialShell',
-             '--shell-dir', '/usr/share/quickshell/dms',
-             '--value', wallpaper_path],
-            check=False
-        )
-        return True
-    except Exception as e:
-        print(f"Error syncing to DMS: {e}")
+        print(f"Error syncing colors: {e}")
         return False
 
 
 def main(verbose: bool = False) -> int:
     """Main sync function - returns 0 on success, 1 on failure"""
-    if verbose:
-        print("wallpaper-selector-sync: Waiting for swww-daemon...")
+    # Load config
+    config = load_config()
 
-    if not wait_for_swww():
+    # Get wallpaper backend
+    backend_class = get_wallpaper_backend(config.wallpaper.backend.name)
+    if not backend_class:
         if verbose:
-            print("wallpaper-selector-sync: swww-daemon not ready after timeout")
+            print(f"sync: Unknown wallpaper backend: {config.wallpaper.backend.name}")
+        return 1
+    wallpaper_backend = backend_class()
+
+    if verbose:
+        print(f"sync: Waiting for {config.wallpaper.backend.name} daemon...")
+
+    if not wait_for_backend(wallpaper_backend):
+        if verbose:
+            print("sync: Wallpaper backend not ready after timeout")
         return 1
 
-    wallpaper = get_current_wallpaper()
+    wallpaper = wallpaper_backend.get_current_wallpaper()
     if not wallpaper:
         if verbose:
-            print("wallpaper-selector-sync: No wallpaper found in swww")
+            print("sync: No wallpaper found")
+        return 1
+
+    # Skip if colors disabled
+    if not config.colors.enabled:
+        if verbose:
+            print("sync: Color generation disabled, skipping")
+        return 0
+
+    # Get color generator
+    color_generator = get_color_backend(
+        config.colors.backend.name,
+        state_dir=config.colors.backend.state_dir,
+        config_dir=config.colors.backend.config_dir,
+        shell_dir=config.colors.backend.shell_dir,
+        session_file=config.colors.backend.session_file,
+    )
+
+    if not color_generator:
+        if verbose:
+            print(f"sync: Unknown color backend: {config.colors.backend.name}")
         return 1
 
     if verbose:
-        print(f"wallpaper-selector-sync: Syncing {wallpaper} to DMS")
+        print(f"sync: Syncing {wallpaper} to {config.colors.backend.name}")
 
-    if sync_to_dms(wallpaper):
+    if sync_colors(wallpaper, color_generator):
         if verbose:
-            print("wallpaper-selector-sync: Sync complete")
+            print("sync: Sync complete")
         return 0
     return 1

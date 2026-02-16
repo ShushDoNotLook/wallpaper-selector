@@ -6,6 +6,9 @@ import sys
 from pathlib import Path
 
 from .app import WallpaperSelector
+from .config import load_config
+from .plugins.wallpaper import get_backend as get_wallpaper_backend
+from .plugins.colors import get_backend as get_color_backend
 from .sync import main as sync_main
 
 PID_FILE = Path("/tmp/wallpaper-selector.pid")
@@ -35,21 +38,13 @@ def kill_existing():
         PID_FILE.unlink(missing_ok=True)
 
 
-def ensure_swww_daemon():
-    """Ensure swww-daemon is running"""
-    result = subprocess.run(['pgrep', '-x', 'swww-daemon'], capture_output=True)
-    if result.returncode != 0:
-        subprocess.run(['swww-daemon'], start_new_session=True)
-        import time
-        time.sleep(0.5)
-
-
-def check_wallpaper_dir() -> bool:
+def check_wallpaper_dir(config) -> bool:
     """Check if wallpaper directory has images"""
-    wallpaper_dir = Path.home() / "Pictures" / "Wallpapers"
+    wallpaper_dir = config.wallpaper.directory
     wallpaper_dir.mkdir(parents=True, exist_ok=True)
 
-    extensions = {'.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'}
+    extensions = {f".{ext.lower()}" if not ext.startswith(".") else ext.lower()
+                  for ext in config.wallpaper.extensions}
     for f in wallpaper_dir.iterdir():
         if f.suffix.lower() in extensions:
             return True
@@ -63,28 +58,50 @@ def main():
         verbose = '--verbose' in sys.argv or '-v' in sys.argv
         sys.exit(sync_main(verbose=verbose))
 
+    # Load config
+    config = load_config()
+
+    # Get wallpaper backend
+    backend_class = get_wallpaper_backend(config.wallpaper.backend.name)
+    if not backend_class:
+        print(f"Unknown wallpaper backend: {config.wallpaper.backend.name}")
+        sys.exit(1)
+    wallpaper_backend = backend_class()
+
     # GUI mode: toggle behavior
     # 1. If already running, kill and exit (toggle off)
     if is_running():
         kill_existing()
         sys.exit(0)
 
-    # 2. Setup environment
-    ensure_swww_daemon()
+    # 2. Setup environment - ensure daemon is running
+    if not wallpaper_backend.is_daemon_running():
+        wallpaper_backend.start_daemon()
 
     # 3. Check for wallpapers
-    if not check_wallpaper_dir():
+    if not check_wallpaper_dir(config):
         subprocess.run([
             'notify-send', 'Wallpaper Selector',
-            f'No wallpapers found in ~/Pictures/Wallpapers. Please add some images.'
+            f'No wallpapers found in {config.wallpaper.directory}. Please add some images.'
         ])
         sys.exit(1)
 
     # 4. Write PID file
     PID_FILE.write_text(str(os.getpid()))
 
-    # 5. Launch the GTK application
-    app = WallpaperSelector()
+    # 5. Get color generator if enabled
+    color_generator = None
+    if config.colors.enabled:
+        color_generator = get_color_backend(
+            config.colors.backend.name,
+            state_dir=config.colors.backend.state_dir,
+            config_dir=config.colors.backend.config_dir,
+            shell_dir=config.colors.backend.shell_dir,
+            session_file=config.colors.backend.session_file,
+        )
+
+    # 6. Launch the GTK application
+    app = WallpaperSelector(config, wallpaper_backend, color_generator)
     try:
         app.run(None)
     finally:

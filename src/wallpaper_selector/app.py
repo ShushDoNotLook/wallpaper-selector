@@ -4,7 +4,7 @@ import gi
 gi.require_version('Gtk', '4.0')
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from gi.repository import Gtk, Gdk, Gio
 
 from .models.wallpaper_manager import WallpaperManager
@@ -12,17 +12,32 @@ from .views.carousel_view import CarouselView
 from .views.grid_view import GridView
 from .styles import CSS
 
+if TYPE_CHECKING:
+    from .config import Config
+    from .plugins.wallpaper import WallpaperBackend
+    from .plugins.colors import ColorGenerator
+
 
 class WallpaperSelector(Gtk.Application):
-    def __init__(self):
+    def __init__(
+        self,
+        config: "Config",
+        wallpaper_backend: "WallpaperBackend",
+        color_generator: Optional["ColorGenerator"] = None,
+    ):
         super().__init__(
             application_id='com.github.wallpaper-selector',
             flags=Gio.ApplicationFlags.FLAGS_NONE
         )
 
-        # Initialize wallpaper manager
-        wallpaper_dir = Path.home() / "Pictures" / "Wallpapers"
-        self.wallpaper_manager = WallpaperManager(wallpaper_dir)
+        self.config = config
+
+        # Initialize wallpaper manager with plugins
+        self.wallpaper_manager = WallpaperManager(
+            config=config,
+            wallpaper_backend=wallpaper_backend,
+            color_generator=color_generator,
+        )
 
         # View management
         self.current_view = None  # 'carousel' or 'grid'
@@ -31,7 +46,7 @@ class WallpaperSelector(Gtk.Application):
         self.view_stack: Optional[Gtk.Stack] = None
 
     def get_current_wallpaper(self) -> Optional[str]:
-        """Get current wallpaper from swww"""
+        """Get current wallpaper from backend"""
         return self.wallpaper_manager.get_current_wallpaper()
 
     def load_wallpapers(self):
@@ -98,7 +113,7 @@ class WallpaperSelector(Gtk.Application):
         # Create main window
         win = Gtk.ApplicationWindow(application=self)
         win.set_title("Wallpaper Selector")
-        win.set_default_size(1100, 550)
+        win.set_default_size(self.config.ui.window_width, self.config.ui.window_height)
         win.set_resizable(False)
 
         # Setup CSS for styling
