@@ -1,6 +1,7 @@
 [Unit]
 Description=Sync wallpaper from swww to DMS on boot
-After=dms.service graphical-session.target
+Before=dms.service graphical-session.target
+Wants=swww.service
 PartOf=graphical-session.target
 
 [Service]
