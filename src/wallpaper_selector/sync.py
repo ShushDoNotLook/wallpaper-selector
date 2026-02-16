@@ -1,9 +1,12 @@
 """Sync current wallpaper from swww to DMS matugen on boot"""
 
+import json
 import subprocess
 import time
 from pathlib import Path
 from typing import Optional
+
+DMS_SESSION_FILE = Path.home() / ".local/state/DankMaterialShell/session.json"
 
 
 def wait_for_swww(timeout: int = 10) -> bool:
@@ -41,9 +44,32 @@ def get_current_wallpaper() -> Optional[str]:
     return None
 
 
+def update_dms_session(wallpaper_path: str) -> bool:
+    """Update DMS session.json with current wallpaper path"""
+    try:
+        if not DMS_SESSION_FILE.exists():
+            return False
+
+        with open(DMS_SESSION_FILE, 'r') as f:
+            session = json.load(f)
+
+        session['wallpaperPath'] = wallpaper_path
+
+        with open(DMS_SESSION_FILE, 'w') as f:
+            json.dump(session, f, indent=2)
+
+        return True
+    except Exception as e:
+        print(f"Error updating DMS session: {e}")
+        return False
+
+
 def sync_to_dms(wallpaper_path: str) -> bool:
     """Sync wallpaper to DMS matugen"""
     try:
+        # Update DMS session file first so it initializes with correct wallpaper
+        update_dms_session(wallpaper_path)
+
         subprocess.run(
             ['dms', 'matugen', 'queue',
              '--state-dir', Path.home() / '.cache/DankMaterialShell',
