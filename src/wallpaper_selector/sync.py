@@ -25,9 +25,15 @@ def wait_for_backend(backend: "WallpaperBackend", timeout: int = 10) -> bool:
     return False
 
 
-def sync_colors(wallpaper_path: str, color_generator: "ColorGenerator") -> bool:
+def sync_colors(wallpaper_path: str, color_generator: "ColorGenerator", verbose: bool = False) -> bool:
     """Sync wallpaper to color generator"""
     try:
+        # Check if colors are already cached for this wallpaper
+        if color_generator.is_cached(wallpaper_path):
+            if verbose:
+                print("sync: Colors already cached for this wallpaper, skipping generation")
+            return True
+
         # Update session file first so it initializes with correct wallpaper
         color_generator.update_session(wallpaper_path)
         # Generate colors
@@ -88,7 +94,7 @@ def main(verbose: bool = False) -> int:
     if verbose:
         print(f"sync: Syncing {wallpaper} to {config.colors.backend.name}")
 
-    if sync_colors(wallpaper, color_generator):
+    if sync_colors(wallpaper, color_generator, verbose=verbose):
         if verbose:
             print("sync: Sync complete")
         return 0

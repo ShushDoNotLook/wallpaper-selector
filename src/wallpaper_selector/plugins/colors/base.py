@@ -19,3 +19,7 @@ class ColorGenerator(Protocol):
     def get_colors_path(self) -> Path:
         """Get the path where generated colors are stored"""
         ...
+
+    def is_cached(self, wallpaper_path: Path) -> bool:
+        """Check if colors are already cached for this wallpaper"""
+        ...

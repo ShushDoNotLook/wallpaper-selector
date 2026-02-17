@@ -63,4 +63,22 @@ class DmsColorGenerator:
 
     def get_colors_path(self) -> Path:
         """Get the path where generated colors are stored"""
-        return self.state_dir / "colors.json"
+        return self.state_dir / "dms-colors.json"
+
+    def is_cached(self, wallpaper_path: Path) -> bool:
+        """Check if colors are already cached for this wallpaper"""
+        # Check if colors file exists
+        colors_file = self.get_colors_path()
+        if not colors_file.exists():
+            return False
+
+        # Check if session has the same wallpaper
+        if not self.session_file.exists():
+            return False
+
+        try:
+            with open(self.session_file, 'r') as f:
+                session = json.load(f)
+            return session.get('wallpaperPath') == str(wallpaper_path)
+        except Exception:
+            return False
