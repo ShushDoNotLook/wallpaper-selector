@@ -11,6 +11,7 @@ from .models.wallpaper_manager import WallpaperManager
 from .views.carousel_view import CarouselView
 from .views.grid_view import GridView
 from .styles import CSS
+from .cache import ensure_thumbnails_async
 
 if TYPE_CHECKING:
     from .config import Config
@@ -109,6 +110,9 @@ class WallpaperSelector(Gtk.Application):
             dialog.run()
             dialog.destroy()
             return
+
+        # Pre-generate thumbnails in background for fast navigation
+        ensure_thumbnails_async(wallpapers)
 
         # Create main window
         win = Gtk.ApplicationWindow(application=self)

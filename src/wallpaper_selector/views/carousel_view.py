@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from wallpaper_selector.models.wallpaper_manager import WallpaperManager
 
 from wallpaper_selector.views.base_view import BaseView
+from wallpaper_selector.cache import get_thumbnail
 
 
 class CarouselView(BaseView):
@@ -163,6 +164,8 @@ class CarouselView(BaseView):
             return
 
         path = wallpapers[self.carousel_index]
+
+        # Load main image synchronously for in-sync updates
         self.carousel_image.set_file(Gio.File.new_for_path(str(path)))
 
         if self.carousel_label:
@@ -170,7 +173,7 @@ class CarouselView(BaseView):
             current_marker = " (current)" if str(path) == self.wallpaper_manager.get_current_wallpaper() else ""
             self.carousel_label.set_text(f"{name}{current_marker}")
 
-        # Update preview thumbnails
+        # Update preview thumbnails synchronously using cached thumbnails
         self._update_preview_thumbnails()
 
     def _update_preview_thumbnails(self):
@@ -194,13 +197,14 @@ class CarouselView(BaseView):
         prev_index = (self.carousel_index - 1) % len(wallpapers)
         next_index = (self.carousel_index + 1) % len(wallpapers)
 
-        # Update left preview (previous wallpaper)
-        prev_path = wallpapers[prev_index]
-        self.preview_left.set_file(Gio.File.new_for_path(str(prev_path)))
+        # Load preview images synchronously using cached thumbnails (instant from cache)
+        prev_thumb = get_thumbnail(wallpapers[prev_index])
+        next_thumb = get_thumbnail(wallpapers[next_index])
 
-        # Update right preview (next wallpaper)
-        next_path = wallpapers[next_index]
-        self.preview_right.set_file(Gio.File.new_for_path(str(next_path)))
+        if prev_thumb:
+            self.preview_left.set_file(Gio.File.new_for_path(str(prev_thumb)))
+        if next_thumb:
+            self.preview_right.set_file(Gio.File.new_for_path(str(next_thumb)))
 
     def navigate_prev(self):
         """Go to previous wallpaper in carousel"""

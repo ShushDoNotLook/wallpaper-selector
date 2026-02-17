@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import List, Optional, TYPE_CHECKING
 
+from ..cache import cache_wallpaper
 from ..config import Config
 
 if TYPE_CHECKING:
@@ -75,6 +76,9 @@ class WallpaperManager:
             backend_config.transition_fps,
         ):
             return False
+
+        # Cache wallpaper for fast boot sync
+        cache_wallpaper(path)
 
         # Generate colors if enabled and generator available
         if self.config.colors.enabled and self.color_generator:
