@@ -82,6 +82,7 @@ class WallpaperManager:
 
         # Generate colors if enabled and generator available
         if self.config.colors.enabled and self.color_generator:
+            self.color_generator.update_session(path)
             self.color_generator.generate(path)
 
         # Update current wallpaper tracking
