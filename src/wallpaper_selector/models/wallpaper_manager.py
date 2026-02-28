@@ -1,5 +1,6 @@
 """Wallpaper Manager - handles wallpaper loading and state management"""
 
+import subprocess
 from pathlib import Path
 from typing import List, Optional, TYPE_CHECKING
 
@@ -84,6 +85,8 @@ class WallpaperManager:
         if self.config.colors.enabled and self.color_generator:
             self.color_generator.update_session(path)
             self.color_generator.generate(path)
+            # Restart DMS to clear QML image cache and reload wallpaper
+            subprocess.run(['dms', 'restart'], capture_output=True, timeout=5)
 
         # Update current wallpaper tracking
         self.current_wallpaper = str(path)
