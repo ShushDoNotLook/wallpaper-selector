@@ -18,7 +18,7 @@ class SwwwBackend:
 
     def start_daemon(self) -> None:
         """Start swww-daemon"""
-        subprocess.run(['swww-daemon'], start_new_session=True)
+        subprocess.Popen(['swww-daemon'], start_new_session=True)
         # Wait for daemon to initialize
         time.sleep(0.5)
 
